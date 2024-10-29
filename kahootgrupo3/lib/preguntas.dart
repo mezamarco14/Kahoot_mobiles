@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Firebase Firestore
 class PreguntasScreen extends StatefulWidget {
   final String examenId; // Recibir el ID del examen
 
-  const PreguntasScreen({Key? key, required this.examenId}) : super(key: key);
+  const PreguntasScreen({super.key, required this.examenId});
 
   @override
   _PreguntasScreenState createState() => _PreguntasScreenState();
@@ -96,8 +96,7 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        primary: const Color(0xFF5C2D91), // Color morado estilo Kahoot
-                        onPrimary: Colors.white, // Texto en blanco
+                        foregroundColor: Colors.white, backgroundColor: const Color(0xFF5C2D91), // Texto en blanco
                       ),
                       onPressed: () {
                         // Lógica para marcar la respuesta
