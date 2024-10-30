@@ -17,7 +17,8 @@ class MainApp extends StatelessWidget {
       ),
       home: const MainPage(),
       routes: {
-        '/preguntas': (context) => const PreguntasScreen(examenId: 'examen1'), // Define la ruta para PreguntasScreen
+        '/preguntas': (context) =>
+            const PreguntasScreen(), // Define la ruta para PreguntasScreen
       },
     );
   }

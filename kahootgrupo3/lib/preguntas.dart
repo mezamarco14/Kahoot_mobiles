@@ -1,11 +1,31 @@
-import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firebase Firestore
+import 'dart:async'; // Importar para usar Timer
+import 'firebase_options.dart'; // Firebase options
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false, // Ocultar el banner de depuración
+      title: 'Preguntas App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const PreguntasScreen(), // Llamar a la pantalla de PreguntasScreen
+    );
+  }
+}
 
 class PreguntasScreen extends StatefulWidget {
-  final String examenId; // Recibir el ID del examen
-
-  const PreguntasScreen({super.key, required this.examenId});
+  const PreguntasScreen({Key? key}) : super(key: key);
 
   @override
   _PreguntasScreenState createState() => _PreguntasScreenState();
@@ -13,27 +33,39 @@ class PreguntasScreen extends StatefulWidget {
 
 class _PreguntasScreenState extends State<PreguntasScreen> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  Timer? _timer;
-  int _counter = 10;
+  int currentQuestionIndex = 0;
+  String? selectedOption;
+  bool isAnswered = false;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    timer?.cancel();
     super.dispose();
   }
 
-  void _startTimer(VoidCallback onTimeout) {
-    _counter = 10;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_counter > 0) {
-          _counter--;
-        } else {
-          timer.cancel();
-          onTimeout();
-        }
-      });
+  void startTimer(List<QueryDocumentSnapshot> preguntas) {
+    timer?.cancel();
+    timer = Timer(const Duration(seconds: 6), () {
+      if (!isAnswered) {
+        setState(() {
+          if (currentQuestionIndex < preguntas.length - 1) {
+            currentQuestionIndex++;
+            selectedOption = null;
+            isAnswered = false;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Has completado todas las preguntas.')),
+            );
+          }
+        });
+      }
     });
   }
 
@@ -41,89 +73,112 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Preguntas del Examen ${widget.examenId}'),
-        backgroundColor: const Color(0xFF5C2D91), // Color morado estilo Kahoot
+        title: const Text('Preguntas'),
+        backgroundColor: Colors.blue, // Color de la barra de título
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // Escuchar los cambios en la colección 'preguntas'
-        stream: firestore.collection('preguntas').snapshots(),
-        builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar preguntas.'));
-          }
+      body: Stack(
+        children: [
+          StreamBuilder<QuerySnapshot>(
+            stream: firestore.collection('preguntas').snapshots(),
+            builder:
+                (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('Error al cargar preguntas.'));
+              }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final preguntas = snapshot.data?.docs;
+              final preguntas = snapshot.data?.docs;
+              if (preguntas == null || preguntas.isEmpty) {
+                return const Center(
+                  child: Text('No hay preguntas disponibles.'),
+                );
+              }
+              startTimer(snapshot.data!.docs);
 
-          if (preguntas == null || preguntas.isEmpty) {
-            return const Center(
-              child: Text('No hay preguntas disponibles.'),
-            );
-          }
+              var pregunta = preguntas[currentQuestionIndex];
+              var opciones = List<String>.from(pregunta['opciones']);
 
-          return ListView.builder(
-            itemCount: preguntas.length,
-            itemBuilder: (context, index) {
-              var pregunta = preguntas[index];
-
-              return Card(
-                color: const Color(0xFFF7E6A2), // Color crema estilo Kahoot
-                margin: const EdgeInsets.all(8),
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ListTile(
-                      title: Text(
-                        pregunta['enunciado'],
-                        style: const TextStyle(color: Colors.black), // Texto en negro
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Opciones: ${pregunta['opciones'].join(', ')}',
-                            style: const TextStyle(color: Colors.black), // Texto en negro
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tiempo restante: $_counter segundos',
-                            style: const TextStyle(color: Colors.black), // Texto en negro
-                          ),
-                        ],
-                      ),
+                    Text(
+                      pregunta['enunciado'],
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
+                    const SizedBox(height: 20),
+                    ...opciones.map((opcion) => RadioListTile<String>(
+                          title: Text(opcion),
+                          value: opcion,
+                          groupValue: selectedOption,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedOption = value;
+                            });
+                          },
+                        )),
+                    const SizedBox(height: 20),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white, backgroundColor: const Color(0xFF5C2D91), // Texto en blanco
+                      onPressed: isAnswered || selectedOption == null
+                          ? null
+                          : () {
+                              setState(() {
+                                isAnswered = true;
+                                timer?.cancel();
+                                if (selectedOption == pregunta['respuesta']) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Respuesta correcta!')),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Respuesta incorrecta.')),
+                                  );
+                                }
+                              });
+                            },
+                      child: const Text('Validar'),
+                    ),
+                    const SizedBox(height: 20),
+                    if (isAnswered)
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            if (currentQuestionIndex < preguntas.length - 1) {
+                              currentQuestionIndex++;
+                              selectedOption = null;
+                              isAnswered = false;
+                              startTimer(snapshot.data!.docs);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Has completado todas las preguntas.')),
+                              );
+                            }
+                          });
+                        },
+                        child: const Text('Siguiente pregunta'),
                       ),
-                      onPressed: () {
-                        // Lógica para marcar la respuesta
-                        _timer?.cancel();
-                      },
-                      child: const Text('Responder'),
+                    const SizedBox(height: 20),
+                    Image.asset(
+                      'images/images.webp',
+                      width: 100,
+                      height: 100,
                     ),
                   ],
                 ),
               );
             },
-          );
-        },
+          ),
+        ],
       ),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _startTimer(() {
-      // Lógica para marcar la pregunta como errada y pasar a la siguiente
-      setState(() {
-        // Aquí se podría implementar la lógica para mover al siguiente ítem
-        // Actualmente solo resetea el temporizador para la próxima pregunta
-        _startTimer(() {});
-      });
-    });
   }
 }
