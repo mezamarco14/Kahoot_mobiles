@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'preguntas.dart'; // Importa el archivo preguntas.dart
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // Asegúrate de que este archivo exista
+import 'preguntas.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform); // Inicializa Firebase
   runApp(const MainApp());
 }
 
@@ -17,8 +21,7 @@ class MainApp extends StatelessWidget {
       ),
       home: const MainPage(),
       routes: {
-        '/preguntas': (context) =>
-            const PreguntasScreen(), // Define la ruta para PreguntasScreen
+        '/preguntas': (context) => const PreguntasScreen(),
       },
     );
   }
