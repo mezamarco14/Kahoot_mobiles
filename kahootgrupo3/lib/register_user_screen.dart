@@ -11,9 +11,10 @@ class RegisterUserScreen extends StatelessWidget {
     return List.generate(20, (index) => chars[random.nextInt(chars.length)]).join();
   }
 
-  Future<void> registerUser(String name) async {
+  Future<void> registerUser(BuildContext context, String name) async {
     String userId = generateRandomId();
 
+    // Sube la información del usuario a Firestore
     await FirebaseFirestore.instance.collection('users').doc(userId).set({
       'username': name,
       'id': userId,
@@ -21,6 +22,13 @@ class RegisterUserScreen extends StatelessWidget {
     });
 
     print('Usuario registrado: $name con ID: $userId');
+
+    // Navega a la pantalla de preguntas, pasando el userId y el nombre
+    Navigator.pushNamed(
+      context,
+      '/preguntas',
+      arguments: {'userId': userId, 'username': name},
+    );
   }
 
   @override
@@ -39,19 +47,18 @@ class RegisterUserScreen extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
                 String name = _nameController.text.trim();
                 if (name.isNotEmpty) {
-                  await registerUser(name);
+                  await registerUser(context, name); // Registra y navega
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Usuario registrado: $name')),
                   );
-                  Navigator.pop(context); // Vuelve a la pantalla principal
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Por favor ingresa un nombre.')),
+                    const SnackBar(content: Text('Por favor ingresa un nombre.')),
                   );
                 }
               },

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Archivo generado automáticamente por Firebase CLI
+import 'firebase_options.dart';
 import 'register_user_screen.dart';
 import 'preguntas.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // Inicializa Firebase
+    options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(const MainApp());
 }
@@ -24,8 +24,19 @@ class MainApp extends StatelessWidget {
       ),
       home: const MainPage(), // Página principal del juego
       routes: {
-        '/preguntas': (context) => const PreguntasScreen(),
-        '/register': (context) =>  RegisterUserScreen(),
+        '/register': (context) =>  RegisterUserScreen(), // Ruta del registro
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/preguntas') {
+          final args = settings.arguments as Map<String, String>; // Recibe argumentos
+          return MaterialPageRoute(
+            builder: (context) => PreguntasScreen(
+              userId: args['userId']!,
+              username: args['username']!,
+            ),
+          );
+        }
+        return null;
       },
     );
   }
@@ -46,16 +57,9 @@ class MainPage extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/register'); // Navega a Registro
+                Navigator.pushNamed(context, '/register'); // Navega a registro
               },
               child: const Text('Registrar Usuario'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/preguntas'); // Navega a Preguntas
-              },
-              child: const Text('Ir a Preguntas'),
             ),
           ],
         ),

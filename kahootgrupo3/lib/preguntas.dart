@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firebase Firestore
 import 'dart:async'; // Importar para usar Timer
 import 'firebase_options.dart'; // Firebase options
+import 'resultados_screen.dart'; // Importar la pantalla de resultados
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,13 +20,20 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const PreguntasScreen(), // Llamar a la pantalla de PreguntasScreen
+      home: const PreguntasScreen(userId: 'someUserId', username: 'someUsername'), // Llamar a la pantalla de PreguntasScreen
     );
   }
 }
 
 class PreguntasScreen extends StatefulWidget {
-  const PreguntasScreen({Key? key}) : super(key: key);
+  final String userId; // Recibir el ID del usuario desde otra pantalla
+  final String username; // Recibir el nombre de usuario
+
+  const PreguntasScreen({
+    Key? key,
+    required this.userId,
+    required this.username,
+  }) : super(key: key);
 
   @override
   _PreguntasScreenState createState() => _PreguntasScreenState();
@@ -37,11 +45,7 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
   String? selectedOption;
   bool isAnswered = false;
   Timer? timer;
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  int aciertos = 0; // Aciertos del usuario
 
   @override
   void dispose() {
@@ -59,22 +63,33 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
             selectedOption = null;
             isAnswered = false;
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Has completado todas las preguntas.')),
-            );
+            guardarResultados(); // Guardar los resultados en Firebase
           }
         });
       }
     });
   }
 
+  Future<void> guardarResultados() async {
+    await firestore.collection('resultados').doc(widget.userId).set({
+      'userId': widget.userId,
+      'aciertos': aciertos,
+    });
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultadosScreen(userId: widget.userId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Preguntas'),
-        backgroundColor: Colors.blue, // Color de la barra de título
+        title: Text('Preguntas - Usuario: ${widget.username}'), // Mostrar nombre de usuario
+        backgroundColor: Colors.blue,
       ),
       body: Stack(
         children: [
@@ -131,6 +146,7 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
                                 isAnswered = true;
                                 timer?.cancel();
                                 if (selectedOption == pregunta['respuesta']) {
+                                  aciertos++; // Incrementar aciertos
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content: Text('Respuesta correcta!')),
@@ -156,11 +172,7 @@ class _PreguntasScreenState extends State<PreguntasScreen> {
                               isAnswered = false;
                               startTimer(snapshot.data!.docs);
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Has completado todas las preguntas.')),
-                              );
+                              guardarResultados(); // Guardar resultados y navegar
                             }
                           });
                         },
